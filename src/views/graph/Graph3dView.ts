@@ -1,5 +1,4 @@
 import { ItemView, WorkspaceLeaf } from "obsidian";
-import Node from "../../graph/Node";
 import { ForceGraph } from "./ForceGraph";
 import { GraphSettingsView } from "../settings/GraphSettingsView";
 import Graph3dPlugin from "src/main";
@@ -21,7 +20,7 @@ export class Graph3dView extends ItemView {
 
 	onunload() {
 		super.onunload();
-		this.forceGraph?.getInstance()._destructor();
+		this.forceGraph?.dispose();
 	}
 
 	showGraph() {
@@ -52,7 +51,7 @@ export class Graph3dView extends ItemView {
 
 	onResize() {
 		super.onResize();
-		this.forceGraph.updateDimensions();
+		this.forceGraph?.updateDimensions();
 	}
 
 	private appendGraph(viewContent: HTMLElement) {
@@ -62,22 +61,18 @@ export class Graph3dView extends ItemView {
 			this.isLocalGraph
 		);
 
-		this.forceGraph
-			.getInstance()
-			.onNodeClick((node: Node, mouseEvent: MouseEvent) => {
-				const clickedNodeFile = this.app.vault
-					.getFiles()
-					.find((f) => f.path === node.path);
+		this.forceGraph.setNodeClickHandler((nodeId: string) => {
+			const clickedNodeFile = this.app.vault
+				.getFiles()
+				.find((file) => file.path === nodeId);
 
-				if (clickedNodeFile) {
-					if (this.isLocalGraph) {
-						this.app.workspace
-							.getLeaf(false)
-							.openFile(clickedNodeFile);
-					} else {
-						this.leaf.openFile(clickedNodeFile);
-					}
+			if (clickedNodeFile) {
+				if (this.isLocalGraph) {
+					this.app.workspace.getLeaf(false).openFile(clickedNodeFile);
+				} else {
+					this.leaf.openFile(clickedNodeFile);
 				}
-			});
+			}
+		});
 	}
 }
