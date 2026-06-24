@@ -142,7 +142,7 @@ export default class Graph {
 		const newGraph = Graph.createFromApp(app);
 
 		this.nodes.splice(0, this.nodes.length, ...newGraph.nodes);
-		this.links.splice(0, this.nodes.length, ...newGraph.links);
+		this.links.splice(0, this.links.length, ...newGraph.links);
 
 		this.nodeIndex.clear();
 		newGraph.nodeIndex.forEach((value, key) => {
