@@ -55,3 +55,160 @@
 	display: none;
 	visibility: hidden;
 }
+/**
+ * CAPT 5D Styles
+ *
+ * Visual design for the 5D knowledge graph controls panel.
+ */
+
+.capt-5d-controls {
+  padding: 16px;
+  overflow-y: auto;
+  max-height: 100vh;
+}
+
+.capt-5d-header {
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.capt-5d-title {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #dda0dd);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.capt-5d-subtitle {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.capt-5d-stats {
+  background: var(--background-secondary);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  font-size: 12px;
+}
+
+.capt-5d-stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.capt-5d-stat-ok {
+  color: var(--text-success);
+}
+
+.capt-5d-section {
+  margin-bottom: 20px;
+  padding: 12px;
+  background: var(--background-secondary);
+  border-radius: 8px;
+}
+
+.capt-5d-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-accent);
+}
+
+.capt-5d-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  gap: 8px;
+}
+
+.capt-5d-row label {
+  font-size: 12px;
+  color: var(--text-normal);
+  min-width: 100px;
+}
+
+.capt-5d-row input[type="range"] {
+  flex: 1;
+  min-width: 100px;
+  accent-color: var(--text-accent);
+}
+
+.capt-5d-row input[type="checkbox"] {
+  accent-color: var(--text-accent);
+}
+
+.capt-5d-value {
+  font-size: 11px;
+  font-family: var(--font-monospace);
+  color: var(--text-muted);
+  min-width: 40px;
+  text-align: right;
+}
+
+.capt-5d-btn {
+  width: 100%;
+  padding: 8px 12px;
+  margin-top: 8px;
+  background: var(--interactive-normal);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.15s ease;
+}
+
+.capt-5d-btn:hover {
+  background: var(--interactive-hover);
+}
+
+.capt-5d-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.capt-5d-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* 5D node glow effects */
+.capt-node-cig {
+  filter: drop-shadow(0 0 4px #ff6b6b);
+}
+
+.capt-node-echo {
+  filter: drop-shadow(0 0 4px #4ecdc4);
+}
+
+.capt-node-bubble {
+  filter: drop-shadow(0 0 4px #45b7d1);
+}
+
+.capt-node-codegraph {
+  filter: drop-shadow(0 0 4px #96ceb4);
+}
+
+/* Depth-based glow */
+.capt-depth-deep {
+  filter: drop-shadow(0 0 6px rgba(128, 0, 255, 0.6));
+}
+
+.capt-depth-shallow {
+  filter: drop-shadow(0 0 4px rgba(255, 200, 0, 0.4));
+}

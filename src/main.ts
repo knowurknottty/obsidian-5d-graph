@@ -1,5 +1,6 @@
 import { Notice, Plugin } from "obsidian";
 import { Graph3dView } from "./views/graph/Graph3dView";
+import { DimensionControlsView } from "./views/settings/categories/DimensionControlsView";
 import GraphSettings from "./settings/GraphSettings";
 import State from "./util/State";
 import Graph from "./graph/Graph";
@@ -27,17 +28,24 @@ export default class Graph3dPlugin extends Plugin {
 
 	async onload() {
 		await this.init();
-		this.addRibbonIcon("glasses", "3D Graph", this.openGlobalGraph);
+		this.addRibbonIcon("glasses", "5D Graph", this.openGlobalGraph);
+		this.addRibbonIcon("brain", "CAPT Dimensions", this.openDimensionControls);
 		this.addCommand({
 			id: "open-3d-graph-global",
-			name: "Open Global 3D Graph",
+			name: "Open Global 5D Graph",
 			callback: this.openGlobalGraph,
 		});
 
 		this.addCommand({
 			id: "open-3d-graph-local",
-			name: "Open Local 3D Graph",
+			name: "Open Local 5D Graph",
 			callback: this.openLocalGraph,
+		});
+
+		this.addCommand({
+			id: "open-capt-dimensions",
+			name: "Open CAPT 5D Dimension Controls",
+			callback: this.openDimensionControls,
 		});
 	}
 
@@ -57,26 +65,22 @@ export default class Graph3dPlugin extends Plugin {
 
 	private initListeners() {
 		this.callbackUnregisterHandles.push(
-			// save settings on change
 			this.settingsState.onChange(() => this.saveSettings())
 		);
 
-		// internal event to reset settings to default
 		EventBus.on("do-reset-settings", this.onDoResetSettings);
 
-		// show open local graph button in file menu
 		this.registerEvent(
 			this.app.workspace.on("file-menu", (menu, file) => {
 				if (!file) return;
 				menu.addItem((item) => {
-					item.setTitle("Open in local 3D Graph")
+					item.setTitle("Open in local 5D Graph")
 						.setIcon("glasses")
 						.onClick(() => this.openLocalGraph());
 				});
 			})
 		);
 
-		// when a file gets opened, update the open file state
 		this.registerEvent(
 			this.app.workspace.on("file-open", (file) => {
 				if (file) this.openFileState.value = file.path;
@@ -84,7 +88,6 @@ export default class Graph3dPlugin extends Plugin {
 		);
 
 		this.callbackUnregisterHandles.push(
-			// when the cache is ready, open the queued graphs
 			this.cacheIsReady.onChange((isReady) => {
 				if (isReady) {
 					this.openQueuedGraphs();
@@ -92,19 +95,16 @@ export default class Graph3dPlugin extends Plugin {
 			})
 		);
 
-		// all files are resolved, so the cache is ready:
 		this.app.metadataCache.on(
 			"resolved",
 			this.onGraphCacheReady.bind(this)
 		);
-		// the cache changed:
 		this.app.metadataCache.on(
 			"resolve",
 			this.onGraphCacheChanged.bind(this)
 		);
 	}
 
-	// opens all queued graphs (graphs get queued if cache isnt ready yet)
 	private openQueuedGraphs() {
 		this.queuedGraphs.forEach((view) => view.showGraph());
 		this.queuedGraphs = [];
@@ -117,9 +117,6 @@ export default class Graph3dPlugin extends Plugin {
 	};
 
 	private onGraphCacheChanged = () => {
-		// check if the cache actually updated
-		// Obsidian API sends a lot of (for this plugin) unnecessary stuff
-		// with the resolve event
 		if (
 			this.cacheIsReady.value &&
 			!shallowCompare(
@@ -131,16 +128,6 @@ export default class Graph3dPlugin extends Plugin {
 				this.app.metadataCache.resolvedLinks
 			);
 			this.globalGraph = Graph.createFromApp(this.app);
-		} else {
-			console.log(
-				"changed but ",
-				this.cacheIsReady.value,
-				" and ",
-				shallowCompare(
-					this._resolvedCache,
-					this.app.metadataCache.resolvedLinks
-				)
-			);
 		}
 	};
 
@@ -149,7 +136,12 @@ export default class Graph3dPlugin extends Plugin {
 		EventBus.trigger("did-reset-settings");
 	};
 
-	// Opens a local graph view in a new leaf
+	private openDimensionControls = () => {
+		const leaf = this.app.workspace.getLeaf("split");
+		const view = new DimensionControlsView(this, leaf);
+		leaf.open(view);
+	};
+
 	private openLocalGraph = () => {
 		const newFilePath = this.app.workspace.getActiveFile()?.path;
 
@@ -161,12 +153,10 @@ export default class Graph3dPlugin extends Plugin {
 		}
 	};
 
-	// Opens a global graph view in the current leaf
 	private openGlobalGraph = () => {
 		this.openGraph(false);
 	};
 
-	// Open a global or local graph
 	private openGraph = (isLocalGraph: boolean) => {
 		const leaf = this.app.workspace.getLeaf(isLocalGraph ? "split" : false);
 		const graphView = new Graph3dView(this, leaf, isLocalGraph);
@@ -185,10 +175,6 @@ export default class Graph3dPlugin extends Plugin {
 	}
 
 	async saveSettings() {
-		console.log(
-			"saveSettings:",
-			this.settingsState.getRawValue().toObject()
-		);
 		await this.saveData(this.settingsState.getRawValue().toObject());
 	}
 
