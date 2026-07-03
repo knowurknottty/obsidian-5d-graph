@@ -1,7 +1,17 @@
 import { ItemView, WorkspaceLeaf, Notice } from "obsidian";
 import Graph3dPlugin from "src/main";
 import { DEFAULT_DIMENSION_STATE, DimensionState } from "../../../dimensions/DimensionState";
+import { CaptDataAdapter } from "../../../capt/CaptDataAdapter";
 import EventBus from "../../../util/EventBus";
+
+interface Capt5DStats {
+  captMode: boolean;
+  d4Enabled: boolean;
+  d5Enabled: boolean;
+  totalNodes: number;
+  captNodes: number;
+  domains: string[];
+}
 
 /**
  * 5D Dimension Controls Panel.
@@ -17,6 +27,8 @@ export class DimensionControlsView extends ItemView {
   private plugin: Graph3dPlugin;
   private dimState: DimensionState = { ...DEFAULT_DIMENSION_STATE };
   private statsEl: HTMLElement | null = null;
+  private captStats: Capt5DStats | null = null;
+  private emitScheduled = false;
 
   constructor(plugin: Graph3dPlugin, leaf: WorkspaceLeaf) {
     super(leaf);
@@ -31,8 +43,12 @@ export class DimensionControlsView extends ItemView {
     return "5D Dimensions";
   }
 
+  getIcon(): string {
+    return "brain";
+  }
+
   async onOpen(): Promise<void> {
-    const container = this.containerEl.children[1];
+    const container = this.containerEl.children[1] as HTMLElement;
     container.empty();
     container.addClass("capt-5d-controls");
 
@@ -53,10 +69,16 @@ export class DimensionControlsView extends ItemView {
     loaderSection.createEl("h4", { text: "Knowledge Snapshot" });
 
     const loadBtn = loaderSection.createEl("button", {
-      text: "Load CAPT Snapshot",
+      text: "Load CAPT Snapshot…",
       cls: "capt-5d-btn",
     });
-    loadBtn.addEventListener("click", () => this.loadSnapshot());
+    loadBtn.addEventListener("click", () => this.pickSnapshotFile());
+
+    const loadVaultBtn = loaderSection.createEl("button", {
+      text: "Load from vault (capt_5d_snapshot.json)",
+      cls: "capt-5d-btn",
+    });
+    loadVaultBtn.addEventListener("click", () => this.loadSnapshotFromVault());
 
     // D4 — Temporal Controls
     this.createD4Section(container);
@@ -66,6 +88,8 @@ export class DimensionControlsView extends ItemView {
 
     // Legend
     this.createLegend(container);
+
+    EventBus.on("capt-stats-updated", this.onCaptStatsUpdated);
   }
 
   private createD4Section(parent: HTMLElement): void {
@@ -150,7 +174,7 @@ export class DimensionControlsView extends ItemView {
     step?: number
   ): void {
     const row = parent.createEl("div", { cls: "capt-5d-row" });
-    const labelEl = row.createEl("label", { text: label });
+    row.createEl("label", { text: label });
     const valueEl = row.createEl("span", {
       text: value.toFixed(2),
       cls: "capt-5d-value",
@@ -194,45 +218,99 @@ export class DimensionControlsView extends ItemView {
     }
   }
 
-  private async loadSnapshot(): Promise<void> {
-    try {
-      const snapshotPath = "/tmp/capt_5d_snapshot.json";
-      new Notice("Loading CAPT knowledge snapshot...");
+  // ── Snapshot loading ─────────────────────────────────────────────
 
-      const response = await fetch(`file://${snapshotPath}`);
-      if (response.ok) {
-        const snapshot = await response.json();
-        EventBus.trigger("capt-snapshot-loaded", snapshot);
-        new Notice("CAPT snapshot loaded successfully!");
-        this.updateStats();
-      } else {
-        new Notice("No CAPT snapshot found. Run the bridge script first.");
+  /** Open a native file picker and load the chosen JSON snapshot. */
+  private pickSnapshotFile(): void {
+    const input = createEl("input", {
+      type: "file",
+      attr: { accept: ".json,application/json" },
+    });
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        this.ingestSnapshotJson(await file.text());
+      } catch (e) {
+        new Notice(`Failed to load snapshot: ${e}`);
       }
+    });
+    input.click();
+  }
+
+  /** Load capt_5d_snapshot.json from the vault root, if present. */
+  private async loadSnapshotFromVault(): Promise<void> {
+    const path = "capt_5d_snapshot.json";
+    try {
+      if (!(await this.app.vault.adapter.exists(path))) {
+        new Notice(
+          "No capt_5d_snapshot.json in the vault root. Run the bridge script and copy its output there, or use the file picker."
+        );
+        return;
+      }
+      this.ingestSnapshotJson(await this.app.vault.adapter.read(path));
     } catch (e) {
       new Notice(`Failed to load snapshot: ${e}`);
     }
   }
+
+  private ingestSnapshotJson(json: string): void {
+    const snapshot = CaptDataAdapter.normalizeSnapshot(JSON.parse(json));
+    if (!snapshot) {
+      new Notice(
+        "Not a CAPT snapshot: expected cig_nodes / cig_edges / echo_traces / bubbles / code_nodes."
+      );
+      return;
+    }
+    EventBus.trigger("capt-snapshot-loaded", snapshot);
+    new Notice("CAPT snapshot loaded successfully!");
+  }
+
+  // ── Stats ────────────────────────────────────────────────────────
+
+  private onCaptStatsUpdated = (stats: Capt5DStats): void => {
+    this.captStats = stats;
+    this.updateStats();
+  };
 
   private updateStats(): void {
     if (!this.statsEl) return;
 
     this.statsEl.empty();
 
-    const row1 = this.statsEl.createEl("div", { cls: "capt-5d-stat" });
-    row1.createEl("span", { text: "D4 Time:" });
-    row1.createEl("span", { text: this.dimState.enableTimeAxis ? "ON" : "OFF" });
+    const addRow = (label: string, value: string, ok = false) => {
+      const row = this.statsEl!.createEl("div", { cls: "capt-5d-stat" });
+      row.createEl("span", { text: label });
+      row.createEl("span", { text: value, cls: ok ? "capt-5d-stat-ok" : "" });
+    };
 
-    const row2 = this.statsEl.createEl("div", { cls: "capt-5d-stat" });
-    row2.createEl("span", { text: "D5 Depth:" });
-    row2.createEl("span", { text: this.dimState.enableDepthAxis ? "ON" : "OFF" });
+    addRow("D4 Time:", this.dimState.enableTimeAxis ? "ON" : "OFF", this.dimState.enableTimeAxis);
+    addRow("D5 Depth:", this.dimState.enableDepthAxis ? "ON" : "OFF", this.dimState.enableDepthAxis);
+
+    if (this.captStats?.captMode) {
+      addRow("CAPT nodes:", String(this.captStats.captNodes), true);
+      addRow("Total nodes:", String(this.captStats.totalNodes));
+      addRow("Domains:", String(this.captStats.domains.length));
+    } else {
+      addRow("CAPT:", "no snapshot loaded");
+    }
   }
 
+  /**
+   * Emit at most once per animation frame — range inputs fire continuously
+   * while dragging, and each emit recomputes per-node attributes.
+   */
   private emitDimensionChange(): void {
-    EventBus.trigger("dimension-state-changed", this.dimState);
     this.updateStats();
+    if (this.emitScheduled) return;
+    this.emitScheduled = true;
+    requestAnimationFrame(() => {
+      this.emitScheduled = false;
+      EventBus.trigger("dimension-state-changed", { ...this.dimState });
+    });
   }
 
   async onClose(): Promise<void> {
-    // Cleanup
+    EventBus.off("capt-stats-updated", this.onCaptStatsUpdated);
   }
 }

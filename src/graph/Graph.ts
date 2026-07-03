@@ -22,6 +22,27 @@ export default class Graph {
 		this.linkIndex = linkIndex || new Map<string, Map<string, number>>();
 	}
 
+	// Adds a node while keeping the id index consistent.
+	// Returns false if a node with the same id already exists.
+	public addNode(node: Node): boolean {
+		if (this.nodeIndex.has(node.id)) return false;
+		this.nodes.push(node);
+		this.nodeIndex.set(node.id, this.nodes.length - 1);
+		return true;
+	}
+
+	// Adds a link while keeping the source/target index consistent.
+	// Returns false if a link between the two ids already exists.
+	public addLink(link: Link): boolean {
+		if (this.getLinkByIds(link.source, link.target)) return false;
+		this.links.push(link);
+		if (!this.linkIndex.has(link.source)) {
+			this.linkIndex.set(link.source, new Map<string, number>());
+		}
+		this.linkIndex.get(link.source)?.set(link.target, this.links.length - 1);
+		return true;
+	}
+
 	// Returns a node by its id
 	public getNodeById(id: string): Node | null {
 		const index = this.nodeIndex.get(id);

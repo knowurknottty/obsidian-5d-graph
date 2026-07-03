@@ -12,6 +12,11 @@ export default class Node {
 	public readonly links: Link[];
 	public readonly tags: string[];
 
+	// D4 — temporal source data (0 = unknown). Populated from TFile.stat for
+	// vault nodes and from CAPT metadata for merged knowledge nodes.
+	public ctimeMs = 0;
+	public mtimeMs = 0;
+
 	constructor(
 		name: string,
 		path: string,
@@ -38,6 +43,8 @@ export default class Node {
 			files
 				.map((file, index) => {
 					const node = new Node(file.name, file.path, file.extension == "md" ? false : true);
+					node.ctimeMs = file.stat?.ctime ?? 0;
+					node.mtimeMs = file.stat?.mtime ?? 0;
 					const cache = app.metadataCache.getFileCache(file),
 						tags = cache ? getAllTags(cache) : null;
 					if (tags != null) {

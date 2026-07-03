@@ -128,6 +128,7 @@ export default class Graph3dPlugin extends Plugin {
 				this.app.metadataCache.resolvedLinks
 			);
 			this.globalGraph = Graph.createFromApp(this.app);
+			EventBus.trigger("graph-changed");
 		}
 	};
 
