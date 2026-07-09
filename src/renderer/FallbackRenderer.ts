@@ -151,6 +151,10 @@ export class FallbackRenderer implements GraphRenderer {
 			this.instance.linkDirectionalParticleWidth(
 				this.plugin.getSettings().display.particleSize
 			);
+		} else if (path === "display.particleCount") {
+			this.instance.linkDirectionalParticles(
+				this.plugin.getSettings().display.particleCount
+			);
 		}
 
 		this.instance.refresh();

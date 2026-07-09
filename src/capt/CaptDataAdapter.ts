@@ -194,7 +194,7 @@ export class CaptDataAdapter {
         meta.eventCount++;
         meta.lastEventTime = Math.max(meta.lastEventTime, trace.timestamp);
         meta.sourceIds.push(trace.trace_id);
-        if (meta.sourceType !== "hybrid") meta.sourceType = "echo";
+        if (meta.sourceType !== "hybrid") meta.sourceType = "hybrid";
       } else {
         // Create new ECHO-derived node
         const meta: Capt5DNodeMeta = {

@@ -268,8 +268,10 @@ export class ForceGraph {
   };
 
   private refreshGraphData = (): void => {
-    this.applyDimensionTransforms();
     this.renderer?.setGraph(this.getGraphData());
+
+    // Apply D4/D5 transforms AFTER graph refresh (getGraphData replaces this.graph)
+    this.applyDimensionTransforms();
   };
 
   private onSettingsStateChanged = (data: StateChange): void => {
