@@ -76,6 +76,7 @@ export class ForceGraph {
     }
 
     this.renderer.setNodeClickHandler(this.nodeClickHandler);
+    this.renderer.setCaptNodeColorFn(this.getCaptNodeColor.bind(this));
     this.renderer.setGraph(this.getGraphData());
     this.renderer.setDimensions(this.dimState);
   }
@@ -91,6 +92,7 @@ export class ForceGraph {
     }
     EventBus.on("graph-changed", this.refreshGraphData);
     EventBus.on("capt-snapshot-loaded", this.onCaptSnapshotLoaded);
+    EventBus.on("dimension-state-changed", this.onDimensionStateChanged);
   }
 
   // ── CAPT 5D Integration ──────────────────────────────────────────
@@ -283,6 +285,10 @@ export class ForceGraph {
     this.loadCaptSnapshot(snapshot);
   };
 
+  private onDimensionStateChanged = (state: DimensionState): void => {
+    this.setDimensionState(state);
+  };
+
   public updateDimensions(): void {
     const [width, height] = [
       this.rootHtmlElement.offsetWidth,
@@ -307,6 +313,9 @@ export class ForceGraph {
     }
 
     this.refreshGraphData();
+
+    // Push full dimension state to the renderer for D4/D5 visual effects
+    this.renderer?.setDimensions(this.dimState);
   }
 
   public setNodeClickHandler(handler: NodeClickHandler | null): void {
@@ -342,6 +351,7 @@ export class ForceGraph {
     this.unsubscribeHandles.splice(0, this.unsubscribeHandles.length);
     EventBus.off("graph-changed", this.refreshGraphData);
     EventBus.off("capt-snapshot-loaded", this.onCaptSnapshotLoaded);
+    EventBus.off("dimension-state-changed", this.onDimensionStateChanged);
     this.renderer?.dispose();
   }
 }

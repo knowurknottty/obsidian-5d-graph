@@ -171,6 +171,10 @@ export class CaptDataAdapter {
         const tgt = this.mergedNodes.get(edge.target)!;
         src.addNeighbor(tgt);
 
+        // Create actual Link object for the renderer
+        const link = new Link(edge.source, edge.target, false);
+        this.mergedLinks.push(link);
+
         // Update D5: accumulate resonance from edge strength
         const srcMeta = this.nodeMeta.get(edge.source)!;
         const tgtMeta = this.nodeMeta.get(edge.target)!;
@@ -288,6 +292,8 @@ export class CaptDataAdapter {
           const src = this.mergedNodes.get(cn.path)!;
           const tgt = this.mergedNodes.get(imp)!;
           src.addNeighbor(tgt);
+          const link = new Link(cn.path, imp, false);
+          this.mergedLinks.push(link);
         }
       }
     }

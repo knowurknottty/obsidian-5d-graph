@@ -1,9 +1,9 @@
 {
-	"id": "3d-graph",
-	"name": "3D Graph",
-	"version": "1.0.5",
-	"description": "A 3D Graph for Obsidian",
-	"author": "Alexander Weichart",
-	"authorUrl": "https://github.com/AlexW00",
+	"id": "obsidian-5d-graph",
+	"name": "CAPT 5D Graph",
+	"version": "2.1.0",
+	"description": "5D Knowledge Graph — CAPT cognitive architecture for Obsidian. Merges CIG, ECHO, Knowledge Bubbles, and CodeGraph into a unified spatial-temporal-semantic visualization.",
+	"author": "Captain, Inversion Labs",
+	"authorUrl": "https://github.com/knowurknottty",
 	"isDesktopOnly": false
 }

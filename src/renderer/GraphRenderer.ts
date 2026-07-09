@@ -18,5 +18,6 @@ export interface GraphRenderer {
 	resize(width: number, height: number): void;
 	setHovered(nodeId: string | null): void;
 	setNodeClickHandler(handler: NodeClickHandler | null): void;
+	setCaptNodeColorFn(fn: (node: any) => string | null): void;
 	dispose(): void;
 }

@@ -32,7 +32,7 @@ export class DimensionControlsView extends ItemView {
   }
 
   async onOpen(): Promise<void> {
-    const container = this.containerEl.children[1];
+    const container = this.containerEl.children[1] as HTMLElement;
     container.empty();
     container.addClass("capt-5d-controls");
 
@@ -199,9 +199,11 @@ export class DimensionControlsView extends ItemView {
       const snapshotPath = "/tmp/capt_5d_snapshot.json";
       new Notice("Loading CAPT knowledge snapshot...");
 
-      const response = await fetch(`file://${snapshotPath}`);
-      if (response.ok) {
-        const snapshot = await response.json();
+      // Use Node.js fs to read the local file (Obsidian runs in Electron)
+      const fs = require("fs");
+      if (fs.existsSync(snapshotPath)) {
+        const raw = fs.readFileSync(snapshotPath, "utf-8");
+        const snapshot = JSON.parse(raw);
         EventBus.trigger("capt-snapshot-loaded", snapshot);
         new Notice("CAPT snapshot loaded successfully!");
         this.updateStats();
