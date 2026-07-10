@@ -58,6 +58,9 @@ export class DimensionControlsView extends ItemView {
     });
     loadBtn.addEventListener("click", () => this.loadSnapshot());
 
+    // Auto-load snapshot if it already exists
+    this.tryAutoLoad();
+
     // D4 — Temporal Controls
     this.createD4Section(container);
 
@@ -208,10 +211,44 @@ export class DimensionControlsView extends ItemView {
         new Notice("CAPT snapshot loaded successfully!");
         this.updateStats();
       } else {
-        new Notice("No CAPT snapshot found. Run the bridge script first.");
+        new Notice(
+          "No snapshot at /tmp/capt_5d_snapshot.json.\n" +
+          "Run: python3 src/capt/capt_5d_bridge.py\n" +
+          "(from the obsidian-5d-graph repo directory)"
+        );
       }
     } catch (e) {
       new Notice(`Failed to load snapshot: ${e}`);
+    }
+  }
+
+  /**
+   * Auto-load the CAPT snapshot if it exists on disk.
+   * Silent — no Notice on success (user didn't click anything).
+   */
+  private tryAutoLoad(): void {
+    try {
+      const snapshotPath = "/tmp/capt_5d_snapshot.json";
+      const fs = require("fs");
+      if (fs.existsSync(snapshotPath)) {
+        const raw = fs.readFileSync(snapshotPath, "utf-8");
+        const snapshot = JSON.parse(raw);
+        const totalNodes =
+          (snapshot.cig_nodes?.length ?? 0) +
+          (snapshot.echo_traces?.length ?? 0) +
+          (snapshot.bubbles?.length ?? 0) +
+          (snapshot.code_nodes?.length ?? 0);
+        if (totalNodes > 0) {
+          EventBus.trigger("capt-snapshot-loaded", snapshot);
+          console.log(
+            `%c[5DGraph] Auto-loaded snapshot: ${totalNodes} nodes`,
+            "color: #4ecdc4; font-weight: bold"
+          );
+          this.updateStats();
+        }
+      }
+    } catch {
+      // Silent — snapshot loading is optional
     }
   }
 

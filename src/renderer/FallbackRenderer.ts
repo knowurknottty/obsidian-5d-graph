@@ -166,9 +166,30 @@ export class FallbackRenderer implements GraphRenderer {
 		this.instance?._destructor?.();
 	}
 
+	// Pre-computed palette for hash-based fallback coloring (12 distinct hues)
+	private static readonly HASH_PALETTE: readonly string[] = [
+		"#e06c75", "#61afef", "#98c379", "#e5c07b",
+		"#c678dd", "#56b6c2", "#d19a66", "#be5046",
+		"#7ec8e3", "#f78c6c", "#b48ead", "#a3be8c",
+	];
+
+	/**
+	 * Deterministic hash from string → index into HASH_PALETTE.
+	 * Ensures same node always gets the same color across renders.
+	 */
+	private static hashColor(id: string): string {
+		let h = 0;
+		for (let i = 0; i < id.length; i++) {
+			h = ((h << 5) - h + id.charCodeAt(i)) | 0;
+		}
+		return FallbackRenderer.HASH_PALETTE[
+			Math.abs(h) % FallbackRenderer.HASH_PALETTE.length
+		];
+	}
+
 	/**
 	 * Get node color — CAPT source-based coloring when available,
-	 * falls back to Obsidian group-based coloring.
+	 * then group-based, then deterministic hash per node id.
 	 */
 	private getNodeColor = (node: Node): string => {
 		if (this.isHighlightedNode(node)) {
@@ -195,12 +216,15 @@ export class FallbackRenderer implements GraphRenderer {
 			}
 		}
 
-		// Fallback: Obsidian group-based coloring
-		let color = this.plugin.theme.textMuted;
+		// Obsidian group-based coloring
+		let groupColor: string | null = null;
 		this.plugin.getSettings().groups.groups.forEach((group) => {
-			if (NodeGroup.matches(group.query, node)) color = group.color;
+			if (NodeGroup.matches(group.query, node)) groupColor = group.color;
 		});
-		return color;
+		if (groupColor) return groupColor;
+
+		// Deterministic hash-based fallback — every node gets a distinct color
+		return FallbackRenderer.hashColor(node.id);
 	};
 
 	/**
