@@ -76,7 +76,12 @@ export class ForceGraph {
     }
 
     this.renderer.setNodeClickHandler(this.nodeClickHandler);
-    this.renderer.setCaptNodeColorFn(this.getCaptNodeColor.bind(this));
+
+    // Register the CAPT color fn but do NOT activate captMode on the renderer
+    // yet — snapshotLoaded=false means the renderer stays in normal coloring
+    // mode until a real CAPT snapshot arrives via loadCaptSnapshot.
+    this.renderer.setCaptNodeColorFn(this.getCaptNodeColor.bind(this), false);
+
     this.renderer.setGraph(this.getGraphData());
     this.renderer.setDimensions(this.dimState);
   }
@@ -115,6 +120,12 @@ export class ForceGraph {
 
     // Merge CAPT nodes into the Obsidian graph
     this.mergeCaptIntoGraph();
+
+    // Now that a real snapshot is loaded, activate CAPT mode on the renderer
+    if (this.renderer instanceof FallbackRenderer) {
+      this.renderer.setCaptNodeColorFn(this.getCaptNodeColor.bind(this), true);
+    }
+
     this.refreshGraphData();
   }
 
@@ -258,7 +269,6 @@ export class ForceGraph {
   private getGraphData = (): Graph => {
     if (this.isLocalGraph && this.plugin.openFileState.value) {
       this.graph = this.plugin.globalGraph
-        .clone()
         .getLocalGraph(this.plugin.openFileState.value);
     } else {
       this.graph = this.plugin.globalGraph.clone();

@@ -59,70 +59,66 @@ export default class Graph {
 
 	// Returns the outgoing and incoming links of a node
 	public getLinksWithNode(nodeId: string): Link[] {
-		// we need to check if the link consists of a Node instance
-		// instead of just a string id,
-		// because D3 will replace each string id with the real Node instance
-		// once the graph is rendered
-		// @ts-ignore
-		if (this.links[0]?.source?.id) {
-			return this.links.filter(
-				// @ts-ignore
-				(link) => link.source.id === nodeId || link.target.id === nodeId
-			);
-		} else {
-			return this.links.filter(
-				(link) => link.source === nodeId || link.target === nodeId
-			);
-		}
+		// D3 replaces string source/target with Node objects after render.
+		// Use Link.idOf for D3-safe comparison in both cases.
+		return this.links.filter(
+			(link) =>
+				Link.idOf(link.source as any) === nodeId ||
+				Link.idOf(link.target as any) === nodeId
+		);
 	}
 
-	// Returns the local graph of a node
+	/**
+	 * Returns the local graph of a node (the node + its direct neighbors
+	 * + all edges between them).
+	 *
+	 * Fixes vs. old implementation:
+	 * 1. No structuredClone — avoids breaking Node prototype methods
+	 *    (isNeighborOf uses reference equality on this.neighbors).
+	 * 2. No splice mutation — old code destroyed inter-neighbor edges.
+	 * 3. Collects ALL links where both endpoints are in the local set,
+	 *    not just links attached to the hub node.
+	 */
 	public getLocalGraph(nodeId: string): Graph {
-		const node = this.getNodeById(nodeId);
-		if (node) {
-			const nodes = [node, ...node.neighbors];
-			const links: Link[] = [];
-			const nodeIndex = new Map<string, number>();
+		const centralNode = this.getNodeById(nodeId);
+		if (!centralNode) return new Graph([], [], new Map(), new Map());
 
-			nodes.forEach((node, index) => {
-				nodeIndex.set(node.id, index);
-			});
+		// Build local node set: hub + its direct neighbors
+		const localNodeIds = new Set<string>([centralNode.id]);
+		centralNode.neighbors.forEach((n) => localNodeIds.add(n.id));
 
-			nodes.forEach((node, index) => {
-				const filteredLinks = node.links
-					.filter(
-						(link) =>
-							nodeIndex.has(link.target) &&
-							nodeIndex.has(link.source)
-					)
-					.map((link) => {
-						if (
-							!links.includes(link) &&
-							nodeIndex.has(link.target) &&
-							nodeIndex.has(link.source)
-						)
-							links.push(link);
-						return link;
-					});
+		// Collect live Node references (no clone)
+		const nodes: Node[] = [];
+		const nodeIndex = new Map<string, number>();
+		localNodeIds.forEach((id) => {
+			const n = this.getNodeById(id);
+			if (n) {
+				nodeIndex.set(n.id, nodes.length);
+				nodes.push(n);
+			}
+		});
 
-				node.links.splice(0, node.links.length, ...filteredLinks);
-			});
+		// Collect all links where BOTH endpoints are in the local set.
+		// This includes inter-neighbor edges, not just hub-spoke edges.
+		const links: Link[] = this.links.filter((link) => {
+			const src = Link.idOf(link.source as any);
+			const tgt = Link.idOf(link.target as any);
+			return localNodeIds.has(src) && localNodeIds.has(tgt);
+		});
 
-			const linkIndex = Link.createLinkIndex(links);
-
-			return new Graph(nodes, links, nodeIndex, linkIndex);
-		} else {
-			return new Graph([], [], new Map(), new Map());
-		}
+		const linkIndex = Link.createLinkIndex(links);
+		return new Graph(nodes, links, nodeIndex, linkIndex);
 	}
 
-	// Clones the graph
+	// Clones the graph (global graph only — use getLocalGraph for subgraphs)
 	public clone = (): Graph => {
 		return new Graph(
-			structuredClone(this.nodes),
-			structuredClone(this.links),
-			structuredClone(this.nodeIndex),
-			structuredClone(this.linkIndex)
+			[...this.nodes],
+			[...this.links],
+			new Map(this.nodeIndex),
+			new Map(
+				Array.from(this.linkIndex.entries()).map(([k, v]) => [k, new Map(v)])
+			)
 		);
 	};
 

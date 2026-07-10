@@ -31,6 +31,12 @@ export class FallbackRenderer implements GraphRenderer {
 	// CAPT 5D state
 	private dimState: DimensionState = { ...DEFAULT_DIMENSION_STATE };
 	private captNodeColorFn: ((node: Node) => string | null) | null = null;
+	/**
+	 * captMode is ONLY true after an explicit setCaptNodeColorFn call AND
+	 * the ForceGraph has confirmed a CAPT snapshot is loaded.
+	 * It must NOT be derived from captNodeColorFn presence alone, because
+	 * ForceGraph registers the fn unconditionally in init() for future use.
+	 */
 	private captMode: boolean = false;
 
 	constructor(plugin: Graph3dPlugin) {
@@ -65,11 +71,12 @@ export class FallbackRenderer implements GraphRenderer {
 			)
 			.linkVisibility((link: Link) => this.doShowLink(link))
 			.onLinkHover((link: Link | null) => this.onLinkHover(link))
-			.linkColor((link: Link) =>
-				this.isHighlightedLink(link)
-					? this.plugin.theme.textAccent
-					: this.plugin.theme.textMuted
-			);
+			.linkColor((link: Link) => {
+				// Guard against undefined theme during early mount
+				const accent = this.plugin.theme?.textAccent ?? "#ffffff";
+				const muted  = this.plugin.theme?.textMuted  ?? "#888888";
+				return this.isHighlightedLink(link) ? accent : muted;
+			});
 	}
 
 	setGraph(graph: Graph): void {
@@ -83,7 +90,9 @@ export class FallbackRenderer implements GraphRenderer {
 	 */
 	setDimensions(state: DimensionState): void {
 		this.dimState = state;
-		this.captMode = !!(this.captNodeColorFn);
+		// NOTE: do NOT derive captMode from captNodeColorFn here.
+		// captMode is set explicitly by setCaptNodeColorFn when ForceGraph
+		// confirms a real CAPT snapshot has been loaded.
 
 		// Force 3d-force-graph to re-evaluate all node colors and sizes
 		if (this.instance) {
@@ -133,11 +142,18 @@ export class FallbackRenderer implements GraphRenderer {
 
 	/**
 	 * Inject the CAPT node color function from ForceGraph.
-	 * When set, this overrides default group-based coloring.
+	 * captMode is activated ONLY when this is called with a live snapshot
+	 * (ForceGraph calls this again after loadCaptSnapshot).
+	 *
+	 * On initial mount, ForceGraph registers the fn but captMode stays false
+	 * until a real CAPT snapshot arrives — preventing the renderer from
+	 * entering CAPT coloring for vanilla Obsidian graphs.
 	 */
-	setCaptNodeColorFn(fn: (node: Node) => string | null): void {
+	setCaptNodeColorFn(fn: (node: Node) => string | null, snapshotLoaded = false): void {
 		this.captNodeColorFn = fn;
-		this.captMode = true;
+		if (snapshotLoaded) {
+			this.captMode = true;
+		}
 	}
 
 	applySettingsChange(path: string, value: unknown): void {
@@ -163,6 +179,7 @@ export class FallbackRenderer implements GraphRenderer {
 	dispose(): void {
 		this.nodeClickHandler = null;
 		this.captNodeColorFn = null;
+		this.captMode = false;
 		this.instance?._destructor?.();
 	}
 
@@ -194,12 +211,12 @@ export class FallbackRenderer implements GraphRenderer {
 	private getNodeColor = (node: Node): string => {
 		if (this.isHighlightedNode(node)) {
 			return node === this.hoveredNode
-				? this.plugin.theme.interactiveAccentHover
-				: this.plugin.theme.textAccent;
+				? (this.plugin.theme?.interactiveAccentHover ?? "#ffffff")
+				: (this.plugin.theme?.textAccent ?? "#aaddff");
 		}
 
-		// CAPT source-based coloring (takes priority)
-		if (this.captNodeColorFn) {
+		// CAPT source-based coloring (takes priority) — only in active CAPT mode
+		if (this.captMode && this.captNodeColorFn) {
 			const captColor = this.captNodeColorFn(node);
 			if (captColor) return captColor;
 		}
@@ -290,8 +307,9 @@ export class FallbackRenderer implements GraphRenderer {
 
 		if (link) {
 			this.highlightedLinks.add(link);
-			this.highlightedNodes.add(link.source);
-			this.highlightedNodes.add(link.target);
+			// D3-safe: source/target may be Node objects post-render
+			this.highlightedNodes.add(Link.idOf(link.source as any));
+			this.highlightedNodes.add(Link.idOf(link.target as any));
 		}
 		this.updateHighlight();
 	};

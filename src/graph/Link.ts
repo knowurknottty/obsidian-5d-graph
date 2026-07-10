@@ -13,14 +13,24 @@ export default class Link {
 		this.linksAnAttachment = linksAnAttachment;
 	}
 
+	/**
+	 * D3-safe ID extractor.
+	 * After 3d-force-graph renders, link.source / link.target are replaced
+	 * with Node objects. This helper extracts the string ID regardless.
+	 */
+	static idOf(val: string | { id: string }): string {
+		return typeof val === "string" ? val : val.id;
+	}
+
 	// Creates a link index for an array of links
 	static createLinkIndex(links: Link[]): Map<string, Map<string, number>> {
 		const linkIndex = new Map<string, Map<string, number>>();
 		links.forEach((link, index) => {
-			if (!linkIndex.has(link.source)) {
-				linkIndex.set(link.source, new Map<string, number>());
+			const src = Link.idOf(link.source as any);
+			if (!linkIndex.has(src)) {
+				linkIndex.set(src, new Map<string, number>());
 			}
-			linkIndex.get(link.source)?.set(link.target, index);
+			linkIndex.get(src)?.set(Link.idOf(link.target as any), index);
 		});
 
 		return linkIndex;
@@ -62,10 +72,10 @@ export default class Link {
 						self.findIndex(
 							(l: Link | null) =>
 								l &&
-								l.source === link.source &&
-								l.target === link.target
+								Link.idOf(l.source as any) === Link.idOf(link.source as any) &&
+								Link.idOf(l.target as any) === Link.idOf(link.target as any)
 						)
-			) as Link[];
+		) as Link[];
 
 		return [links, Link.createLinkIndex(links)];
 	}
